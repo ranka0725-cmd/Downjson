@@ -1,41 +1,29 @@
 {
   "manifest_version": 3,
-  "name": "Downloader Web (Manual Capture)",
-  "version": "1.4.0",
-  "description": "선택자 기반 텍스트/이미지 수집, 폴더 유지, 로그 기록(JSONL)",
-  "action": {
-    "default_title": "Downloader Web"
-  },
-  "permissions": [
-    "storage",
-    "declarativeNetRequest",
-    "declarativeNetRequestWithHostAccess"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "background": {
-    "service_worker": "bg.js",
-    "type": "module"
-  },
+  "name": "Downjson - Selector & Text Grabber",
+  "version": "0.1.1",
+  "description": "요소 선택자/텍스트 추출, 도메인별 저장, 아이콘/단축키로 패널 토글 (Shadow DOM)",
+  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "bg.js" },
+  "action": { "default_title": "Downjson 패널 토글" },
   "content_scripts": [
     {
-      "matches": [
-        "http://*/*",
-        "https://*/*"
-      ],
-      "js": [
-        "lib/dom-text.js",           
-        "lib/scroll.js",             
-        "lib/store.js",              
-        "lib/fsa.js",                
-        "lib/nav.js",                
-        "lib/ui.js",                 
-        "lib/image.js",              
-        "lib/log.js",                
-        "content.js"
-      ],
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
       "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "toggle-panel": {
+      "suggested_key": { "default": "Alt+Shift+X" },
+      "description": "Downjson 패널 열기/닫기"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/*"],
+      "matches": ["<all_urls>"]
     }
   ]
 }
