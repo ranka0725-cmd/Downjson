@@ -1,54 +1,73 @@
 /********************************************************************** // [파일 헤더 시작]
- * bg.js (MV3 Service Worker)                                           // 서비스 워커
- * 기능 번호 체계 반영                                                   // 번호 규칙
- * - 01-01 아이콘 클릭 → 패널 토글 메시지 전송                           // 기능 01-01
- * - 01-02 단축키(Alt+Shift+X) → 패널 토글 메시지 전송                   // 기능 01-02
+ * bg.js (MV3 Service Worker · frames+diag v0.1.4)                      // 파일/버전
+ * - 01-01: 아이콘 클릭 → 패널 토글                                      // 기능
+ * - 01-02: 단축키 → 패널 토글 / 강제 주입                               // 기능
+ * - 01-03: 메시지 실패 시 content.js 자동 주입 후 재시도                // 기능
+ * - 05-00: 탭 활성/로드 완료 시 '한 번만' 자동 주입                     // 기능(보조)
  **********************************************************************/ // [파일 헤더 끝]
 
-/********************************************************************** // [섹션 시작 05-00] 설치/업데이트 훅
- * 확장 설치/업데이트 시 1회 호출                                       // 설명
- **********************************************************************/
-chrome.runtime.onInstalled.addListener(() => {         // 05-00-01
-  // 초기화 필요 시 이곳 사용                                            // 05-00-02
-});                                                    // 05-00-03
-/********************************************************************** // [섹션 끝 05-00] 설치/업데이트 훅
- **********************************************************************/
+function log(...a){try{console.log("[Downjson]",...a)}catch{}}            // 공통 로그
+function warn(...a){try{console.warn("[Downjson]",...a)}catch{}}          // 공통 경고
 
-/********************************************************************** // [섹션 시작 01-01] 아이콘 클릭 → 패널 토글
- * 현재 활성 탭의 content.js에 {type:"DOWNJSON_TOGGLE_PANEL"} 전송       // 설명
- **********************************************************************/
-chrome.action.onClicked.addListener(async (tab) => {   // 01-01-01
-  if (!tab || !tab.id) return;                         // 01-01-02
-  try {                                                // 01-01-03
-    await chrome.tabs.sendMessage(                     // 01-01-04
-      tab.id,                                          // 01-01-05
-      { type: "DOWNJSON_TOGGLE_PANEL" }                // 01-01-06
-    );                                                 // 01-01-07
-  } catch (err) {                                      // 01-01-08
-    console.warn("[Downjson] 메시지 전송 실패:", err);  // 01-01-09
-  }                                                    // 01-01-10
-});                                                    // 01-01-11
-/********************************************************************** // [섹션 끝 01-01] 아이콘 클릭 → 패널 토글
- **********************************************************************/
+async function sendToggle(tab, forceOpen=false){                           // 01-03-00
+  if(!tab || !tab.id) return false;                                       // 01-03-00-01
+  const url = tab.url || "";                                              // 01-03-00-02
+  const blocked=/^(chrome|edge|about|brave|opera|vivaldi|chrome-extension):/i.test(url);//01-03-00-03
+  if(blocked){ warn("주입 불가 페이지:", url);                             // 01-03-00-04
+    chrome.action.setBadgeText({text:"X",tabId:tab.id});                  // 01-03-00-05
+    chrome.action.setBadgeBackgroundColor({color:"#d00",tabId:tab.id});   // 01-03-00-06
+    return false;                                                         // 01-03-00-07
+  }
+  try{
+    await chrome.tabs.sendMessage(tab.id,{type:"DOWNJSON_TOGGLE_PANEL",forceOpen}); // 01-03-01
+    chrome.action.setBadgeText({text:"",tabId:tab.id});                   // 01-03-01-1
+    log("메시지 전송 성공");                                              // 01-03-01-2
+    return true;                                                          // 01-03-01-3
+  }catch(err){ warn("수신자 없음 → 자동 주입 시도",err) }                 // 01-03-01-4
 
-/********************************************************************** // [섹션 시작 01-02] 단축키 → 패널 토글
- * manifest.json commands.toggle-panel (Alt+Shift+X)                    // 설명
- **********************************************************************/
-chrome.commands.onCommand.addListener(async (command) => { // 01-02-01
-  if (command !== "toggle-panel") return;             // 01-02-02
-  try {                                               // 01-02-03
-    const [tab] = await chrome.tabs.query({           // 01-02-04
-      active: true,                                   // 01-02-05
-      currentWindow: true                             // 01-02-06
-    });                                               // 01-02-07
-    if (!tab || !tab.id) return;                      // 01-02-08
-    await chrome.tabs.sendMessage(                    // 01-02-09
-      tab.id,                                         // 01-02-10
-      { type: "DOWNJSON_TOGGLE_PANEL" }               // 01-02-11
-    );                                                // 01-02-12
-  } catch (err) {                                     // 01-02-13
-    console.warn("[Downjson] 단축키 메시지 실패:", err); // 01-02-14
-  }                                                   // 01-02-15
-});                                                   // 01-02-16
-/********************************************************************** // [섹션 끝 01-02] 단축키 → 패널 토글
- **********************************************************************/
+  try{
+    if(forceOpen){
+      await chrome.scripting.executeScript({ target:{tabId:tab.id}, func:()=>{ window.__DOWNJSON_FORCE_OPEN__=true; } });
+    }
+    await chrome.scripting.executeScript({ target:{tabId:tab.id}, files:["content.js"] });
+  }catch(err){
+    warn("content.js 주입 실패",err);
+    chrome.action.setBadgeText({text:"ERR",tabId:tab.id});
+    chrome.action.setBadgeBackgroundColor({color:"#d00",tabId:tab.id});
+    return false;
+  }
+
+  try{
+    await chrome.tabs.sendMessage(tab.id,{type:"DOWNJSON_TOGGLE_PANEL",forceOpen}); // 01-03-03
+    chrome.action.setBadgeText({text:"",tabId:tab.id});
+    log("주입 후 메시지 전송 성공");
+    return true;
+  }catch(err){
+    warn("2차 메시지 실패",err);
+    chrome.action.setBadgeText({text:"ERR",tabId:tab.id});
+    chrome.action.setBadgeBackgroundColor({color:"#d00",tabId:tab.id});
+    return false;
+  }
+}
+
+chrome.action.onClicked.addListener(async(tab)=>{ await sendToggle(tab,false); }); // 01-01
+
+chrome.commands.onCommand.addListener(async(command)=>{                           // 01-02
+  const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
+  if(!tab) return;
+  if(command==="toggle-panel") return void sendToggle(tab,false);
+  if(command==="force-inject") return void sendToggle(tab,true);
+});
+
+const injected = new Set();                                                       // 05-00
+async function tryAutoInject(tabId){
+  if(injected.has(tabId)) return;
+  injected.add(tabId);
+  try{
+    await chrome.scripting.executeScript({target:{tabId},files:["content.js"]});
+    chrome.action.setBadgeText({text:".",tabId});
+    chrome.action.setBadgeBackgroundColor({color:"#888",tabId});
+  }catch(e){ /* 무시 */ }
+}
+chrome.tabs.onActivated.addListener(info=>tryAutoInject(info.tabId));
+chrome.tabs.onUpdated.addListener((tabId,change)=>{ if(change.status==="complete") tryAutoInject(tabId); });

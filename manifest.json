@@ -1,50 +1,35 @@
 {
   "manifest_version": 3,
-  "name": "Downjson - Selector & Text Grabber",
-  "version": "0.1.2",
-  "description": "요소 선택자/텍스트 추출, 도메인별 저장, 아이콘/단축키로 패널 토글 (Shadow DOM)",
-  "permissions": [
-    "storage",
-    "activeTab",
-    "scripting",
-    "clipboardWrite"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "background": {
-    "service_worker": "bg.js"
-  },
-  "action": {
-    "default_title": "Downjson 패널 토글"
-  },
+  "name": "Downjson - Selector & Text Grabber (frames+diag)",
+  "version": "0.1.4",
+  "description": "Shadow DOM 패널 · 선택자/텍스트 추출 · 진단(자동 주입/강제 열기) · iframe 포함(all_frames:true)",
+  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "optional_host_permissions": ["file://*/*"],
+  "background": { "service_worker": "bg.js" },
+  "action": { "default_title": "Downjson 패널 토글" },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content.js"
-      ],
-      "run_at": "document_idle"
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "commands": {
     "toggle-panel": {
-      "suggested_key": {
-        "default": "Alt+Shift+X"
-      },
+      "suggested_key": { "default": "Alt+Shift+X" },
       "description": "Downjson 패널 열기/닫기"
+    },
+    "force-inject": {
+      "suggested_key": { "default": "Alt+Shift+Y" },
+      "description": "강제 주입 + 즉시 열기 (진단용)"
     }
-  },
+  ],
   "web_accessible_resources": [
     {
-      "resources": [
-        "lib/*"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "resources": ["lib/*"],
+      "matches": ["<all_urls>"]
     }
   ]
 }
