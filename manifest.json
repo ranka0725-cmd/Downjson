@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Downloader Web (Manual Capture)",
+  "version": "1.4.0",
+  "description": "선택자 기반 텍스트/이미지 수집, 폴더 유지, 로그 기록(JSONL)",
+  "action": {
+    "default_title": "Downloader Web"
+  },
+  "permissions": [
+    "storage",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "bg.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "lib/dom-text.js",           
+        "lib/scroll.js",             
+        "lib/store.js",              
+        "lib/fsa.js",                
+        "lib/nav.js",                
+        "lib/ui.js",                 
+        "lib/image.js",              
+        "lib/log.js",                
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
